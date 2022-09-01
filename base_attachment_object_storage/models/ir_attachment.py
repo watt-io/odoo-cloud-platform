@@ -81,8 +81,8 @@ class IrAttachment(models.Model):
         # migration here.
         # Typical example is images of ir.ui.menu which are updated in
         # ir.attachment at every upgrade of the addons
-        if update_module:
-            self.env['ir.attachment'].sudo()._force_storage_to_object_storage()
+        # if update_module:
+        #     self.env['ir.attachment'].sudo()._force_storage_to_object_storage()
 
     @property
     def _object_storage_default_force_db_config(self):
@@ -195,13 +195,6 @@ class IrAttachment(models.Model):
                 return values
         return super()._get_datas_related_values(data, mimetype)
 
-    @api.model
-    def _file_read(self, fname):
-        if self._is_file_from_a_store(fname):
-            return self._store_file_read(fname)
-        else:
-            return super()._file_read(fname)
-
     def _store_file_read(self, fname):
         storage = fname.partition('://')[0]
         raise NotImplementedError(
@@ -221,6 +214,13 @@ class IrAttachment(models.Model):
         )
 
     @api.model
+    def _file_read(self, fname):
+        try:
+            return self._store_file_read(fname)
+        except:
+            return super()._file_read(fname)
+
+    @api.model
     def _file_write(self, bin_data, checksum):
         location = self.env.context.get('storage_location') or self._storage()
         if location in self._get_stores():
@@ -235,22 +235,17 @@ class IrAttachment(models.Model):
     @api.model
     def _file_delete(self, fname):
         if self._is_file_from_a_store(fname):
-            cr = self.env.cr
-            # using SQL to include files hidden through unlink or due to record
-            # rules
-            cr.execute("SELECT COUNT(*) FROM ir_attachment "
-                       "WHERE store_fname = %s", (fname,))
-            count = cr.fetchone()[0]
-            if not count:
-                self._store_file_delete(fname)
+            self._store_file_delete(fname)
         else:
             super()._file_delete(fname)
 
     @api.model
-    def _is_file_from_a_store(self, fname):
-        if self.is_storage_disabled("s3"):
+    def _is_file_from_a_store(self, fname) -> bool:
+        try:
+            self._store_file_read(fname)
+            return True
+        except:
             return False
-        return not self.is_attachment_local
 
     @contextmanager
     def do_in_new_env(self, new_cr=False):

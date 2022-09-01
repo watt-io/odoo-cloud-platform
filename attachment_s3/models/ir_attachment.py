@@ -119,7 +119,8 @@ class IrAttachment(models.Model):
 
     @api.model
     def _store_file_read(self, fname):
-        if not self.is_attachment_local:
+        location = self.env.context.get('storage_location') or self._storage()
+        if location == 's3':
             bucket_name = os.environ.get("AWS_BUCKETNAME")
             fname = f"s3://{bucket_name}/{fname[3:]}"
             s3uri = S3Uri(fname)
@@ -129,7 +130,6 @@ class IrAttachment(models.Model):
                 _logger.exception(
                     "error reading attachment '%s' from object storage", fname
                 )
-                return ''
             try:
                 key = s3uri.item()
                 bucket.meta.client.head_object(
@@ -144,6 +144,7 @@ class IrAttachment(models.Model):
                 _logger.info(
                     "attachment '%s' missing on object storage", fname
                 )
+                raise Exception(f"attachment {fname} missing on object storage")
             return read
         else:
             return super()._store_file_read(fname)
@@ -178,7 +179,8 @@ class IrAttachment(models.Model):
 
     @api.model
     def _store_file_delete(self, fname):
-        if not self.is_attachment_local:
+        location = self.env.context.get('storage_location') or self._storage()
+        if location == 's3':
             bucket_name = os.environ.get("AWS_BUCKETNAME")
             fname = f"s3://{bucket_name}/{fname[3:]}"
             s3uri = S3Uri(fname)
