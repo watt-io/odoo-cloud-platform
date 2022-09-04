@@ -26,11 +26,6 @@ except ImportError:
 class IrAttachment(models.Model):
     _inherit = "ir.attachment"
 
-    is_attachment_local = fields.Boolean(
-        string="Anexo é local?",
-        default=True
-    )
-
     def _get_stores(self):
         l = ['s3']
         l += super()._get_stores()
@@ -162,8 +157,6 @@ class IrAttachment(models.Model):
                 # filename = 's3://%s/%s' % (bucket.name, key)
                 try:
                     obj.upload_fileobj(file)
-                    # attch = self.env["ir.attachment"].search([("store_fname", '=', filename)])
-                    # attch.is_attachment_local = False
                 except ClientError as error:
                     # log verbose error from s3, return short message for user
                     _logger.exception(
